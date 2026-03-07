@@ -1,9 +1,9 @@
 package main
 
-import "fmt"
+import "github.com/parrothacker1/watchforge/internal/cmd";
 
 var version = "dev"
 
 func main() {
-	fmt.Println("watchforge",version);
+	cmd.Run(version);
 }
