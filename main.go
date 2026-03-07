@@ -2,7 +2,8 @@ package main
 
 import "fmt"
 
+var version = "dev"
+
 func main() {
-	//bleh
-	fmt.Println("Hello World");
+	fmt.Println("watchforge",version);
 }

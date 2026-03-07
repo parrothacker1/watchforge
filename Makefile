@@ -4,13 +4,16 @@ APP_NAME = watchforge
 TARGET ?= linux
 ARCH ?= amd64
 
-SRC := $(shell find . -name "*.go")
+SRC := $(shell find . -type f -name "*.go" -not -path "./.bin/*")
 MAIN_SRC := .
 
-DEBUG_FLAGS =
-RELEASE_FLAGS = -ldflags="-s -w" -trimpath -buildvcs=false
-
 UPX ?= upx
+
+BUILD ?= debug
+VERSION ?= dev
+
+DEBUG_FLAGS =
+RELEASE_FLAGS = -ldflags="-s -w -X main.version=$(VERSION)" -trimpath -buildvcs=false
 
 DEBUG_BIN = $(BINARY_DIR)/$(APP_NAME)-debug-$(TARGET)-$(ARCH)
 RELEASE_BIN = $(BINARY_DIR)/$(APP_NAME)-release-$(TARGET)-$(ARCH)
@@ -25,8 +28,6 @@ RELEASE_BIN := $(RELEASE_BIN)$(EXT)
 
 BIN := $(DEBUG_BIN)
 FLAGS := $(DEBUG_FLAGS)
-
-BUILD ?= debug
 
 ifeq ($(BUILD),release)
 BIN := $(RELEASE_BIN)
