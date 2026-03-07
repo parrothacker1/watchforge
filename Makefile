@@ -1,0 +1,53 @@
+BINARY_DIR = .bin
+APP_NAME = watchforge
+
+TARGET ?= linux
+ARCH ?= amd64
+
+MAIN_SRC := .
+
+DEBUG_FLAGS = 
+RELEASE_FLAGS = -ldflags="-s -w" -trimpath -buildvcs=false
+
+DEBUG_BIN = $(BINARY_DIR)/$(APP_NAME)-debug-$(TARGET)-$(ARCH)
+RELEASE_BIN = $(BINARY_DIR)/$(APP_NAME)-release-$(TARGET)-$(ARCH)
+
+
+EXT := 
+ifeq ($(TARGET),windows)
+	EXT := .exe
+endif
+
+
+DEBUG_BIN := $(DEBUG_BIN)$(EXT)
+RELEASE_BIN := $(RELEASE_BIN)$(EXT)
+
+BIN := $(DEBUG_BIN)
+FLAGS := $(DEBUG_FLAGS)
+
+BUILD ?= debug
+
+ifeq ($(BUILD),release)
+	BIN := $(RELEASE_BIN)
+	FLAGS := $(RELEASE_FLAGS)
+endif
+
+.PHONY: all build clean run
+
+setup:
+	@echo "[X] Setting up dir"
+	@mkdir -p $(BINARY_DIR)
+
+build: setup
+	@echo "[X] Building the $(BUILD) binary"
+	@CGO_ENABLED=0 GOOS=$(TARGET) GOARCH=$(ARCH) \
+			 go build $(FLAGS) -o $(BIN) $(MAIN_SRC) 
+	@echo "[X] Done building the $(BUILD) binary"
+
+clean:
+	@echo "[X] Removing all binaries from $(BINARY_DIR) dir"
+	@rm -rf $(BINARY_DIR)
+
+run: build
+	@echo "[X] Running the binary"
+	@./$(BIN)
