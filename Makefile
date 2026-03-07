@@ -4,20 +4,21 @@ APP_NAME = watchforge
 TARGET ?= linux
 ARCH ?= amd64
 
+SRC := $(shell find . -name "*.go")
 MAIN_SRC := .
 
-DEBUG_FLAGS = 
+DEBUG_FLAGS =
 RELEASE_FLAGS = -ldflags="-s -w" -trimpath -buildvcs=false
+
+UPX ?= upx
 
 DEBUG_BIN = $(BINARY_DIR)/$(APP_NAME)-debug-$(TARGET)-$(ARCH)
 RELEASE_BIN = $(BINARY_DIR)/$(APP_NAME)-release-$(TARGET)-$(ARCH)
 
-
-EXT := 
+EXT :=
 ifeq ($(TARGET),windows)
-	EXT := .exe
+EXT := .exe
 endif
-
 
 DEBUG_BIN := $(DEBUG_BIN)$(EXT)
 RELEASE_BIN := $(RELEASE_BIN)$(EXT)
@@ -28,26 +29,32 @@ FLAGS := $(DEBUG_FLAGS)
 BUILD ?= debug
 
 ifeq ($(BUILD),release)
-	BIN := $(RELEASE_BIN)
-	FLAGS := $(RELEASE_FLAGS)
+BIN := $(RELEASE_BIN)
+FLAGS := $(RELEASE_FLAGS)
 endif
 
-.PHONY: all build clean run
+.PHONY: setup build clean run
 
 setup:
 	@echo "[X] Setting up dir"
 	@mkdir -p $(BINARY_DIR)
 
-build: setup
+$(BIN): $(SRC) | setup
 	@echo "[X] Building the $(BUILD) binary"
 	@CGO_ENABLED=0 GOOS=$(TARGET) GOARCH=$(ARCH) \
-			 go build $(FLAGS) -o $(BIN) $(MAIN_SRC) 
+		go build $(FLAGS) -o $(BIN) $(MAIN_SRC)
 	@echo "[X] Done building the $(BUILD) binary"
+ifeq ($(BUILD),release)
+	@echo "[X] Compressing binary with UPX"
+	@$(UPX) -9 $(BIN)
+endif
+
+build: $(BIN)
 
 clean:
-	@echo "[X] Removing all binaries from $(BINARY_DIR) dir"
+	@echo "[X] Removing all binaries from $(BINARY_DIR)"
 	@rm -rf $(BINARY_DIR)
 
-run: build
-	@echo "[X] Running the binary"
+run: $(BIN)
+	@echo "[X] Running the $(BUILD) binary"
 	@./$(BIN)
