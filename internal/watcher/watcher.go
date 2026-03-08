@@ -71,7 +71,10 @@ func (w *Watcher) add(path string) error {
 func (w *Watcher) Run(events chan string) {
 	for {
 		select {
-		case event := <-w.watcher.Events:
+		case event, ok := <-w.watcher.Events:
+			if !ok {
+				return
+			}
 			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
 				continue
 			}
@@ -108,7 +111,9 @@ func (w *Watcher) Run(events chan string) {
 			}
 			events <- event.Name
 		case err := <-w.watcher.Errors:
-			logger.Log.Error("watch error", "error", err)
+			if err != nil {
+				logger.Log.Error("watch error", "error", err)
+			}
 		}
 	}
 }

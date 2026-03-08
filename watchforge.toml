@@ -1,0 +1,25 @@
+root = '.'
+
+[actions]
+build = ['.go']
+restart = ['.env', '.yaml', '.yml', '.json', '.md']
+
+[build]
+command = 'make build'
+
+[log]
+debug = false
+
+[run]
+command = './.bin/watchforge-debug-linux-amd64  version'
+
+[runner]
+crash-window = 2000
+max-crashes = 3
+restart-delay = 2000
+
+[watcher]
+debounce = 200
+exclude = []
+ignore = ['node_modules', 'bin']
+ignore-git = true

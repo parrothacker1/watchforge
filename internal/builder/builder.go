@@ -5,20 +5,20 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+
+	"github.com/parrothacker1/watchforge/internal/config"
+	"github.com/parrothacker1/watchforge/internal/logger"
 )
 
 type Builder struct {
-	buildCmd string
-
 	mu     sync.Mutex
 	cancel context.CancelFunc
 	ctx    context.Context
 }
 
-func New(cmd string, ctx context.Context) *Builder {
+func New(ctx context.Context) *Builder {
 	return &Builder{
-		buildCmd: cmd,
-		ctx:      ctx,
+		ctx: ctx,
 	}
 }
 
@@ -30,7 +30,9 @@ func (b *Builder) Build() error {
 	ctx, cancel := context.WithCancel(b.ctx)
 	b.cancel = cancel
 	b.mu.Unlock()
-	cmd := exec.CommandContext(ctx, "sh", "-c", b.buildCmd)
+	logger.Log.Info("running builder")
+	buildCmd := config.GetConfig().Build.Command
+	cmd := exec.CommandContext(ctx, "sh", "-c", buildCmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -40,6 +42,7 @@ func (b *Builder) Cancel() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.cancel != nil {
+		logger.Log.Info("stopping builder")
 		b.cancel()
 	}
 }

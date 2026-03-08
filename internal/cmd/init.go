@@ -1,36 +1,30 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/parrothacker1/watchforge/internal/config"
+	"github.com/parrothacker1/watchforge/internal/logger"
 
 	"github.com/spf13/cobra"
 )
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Create a watchforge configuration file",
+	Short: "Generate watchforge.toml config",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		config := `root = "."
-
-build = "go build -o ./bin/server ./cmd/server"
-
-exec = "./bin/server"
-
-debounce = 200
-`
-
-		if _, err := os.Stat(".watchforge.toml"); err == nil {
-			return fmt.Errorf(".watchforge.toml already exists")
+		logger.Init(false)
+		path := "watchforge.toml"
+		if _, err := os.Stat(path); err == nil {
+			logger.Log.Warn("config already exists", "path", path)
+			return nil
 		}
-
-		err := os.WriteFile(".watchforge.toml", []byte(config), 0644)
+		cfg := config.Default()
+		err := config.Write(path, cfg)
 		if err != nil {
 			return err
 		}
-
-		fmt.Println("Created .watchforge.toml")
+		logger.Log.Info("config generated", "path", path)
 		return nil
 	},
 }
