@@ -49,7 +49,7 @@ var runCmd = &cobra.Command{
 
 		processor := events.NewProcessor(32)
 		b := builder.New(build, ctx)
-		r := runner.New(execCmd)
+		r := runner.New(execCmd, ctx)
 
 		go processor.Run(200 * time.Millisecond)
 		go func() {
@@ -59,6 +59,7 @@ var runCmd = &cobra.Command{
 				}
 			}
 		}()
+
 		for batch := range processor.Out {
 			var buildNeeded bool
 			var restartNeeded bool
