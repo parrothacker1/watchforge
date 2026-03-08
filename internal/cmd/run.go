@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"path/filepath"
 	"time"
 
 	"github.com/parrothacker1/watchforge/internal/builder"
@@ -23,6 +25,9 @@ var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Run hot reload engine",
 	RunE: func(cmd *cobra.Command, args []string) error {
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		logger.Init(debug)
 		logger.Log.Info("starting")
 		var filter *files.Filter
@@ -43,7 +48,7 @@ var runCmd = &cobra.Command{
 		go w.Run(fileEvents)
 
 		processor := events.NewProcessor(32)
-		b := builder.New(build)
+		b := builder.New(build, ctx)
 		r := runner.New(execCmd)
 
 		go processor.Run(200 * time.Millisecond)
@@ -54,17 +59,25 @@ var runCmd = &cobra.Command{
 				}
 			}
 		}()
-		for range processor.Out {
-			logger.Log.Info("change detected")
-			err := b.Build()
-			if err != nil {
-				logger.Log.Error("build failed", "error", err)
+		for batch := range processor.Out {
+			var buildNeeded bool
+			var restartNeeded bool
+			for _, path := range batch.Paths {
+				switch filepath.Ext(path) {
+				case ".go":
+					buildNeeded = true
+				case ".env", ".yaml", ".json", ".md", ".yml":
+					restartNeeded = true
+				}
+			}
+			if buildNeeded {
+				b.Cancel()
+				b.Build()
+				r.Restart()
 				continue
 			}
-			logger.Log.Info("restarting server")
-			err = r.Restart()
-			if err != nil {
-				logger.Log.Error("restart failed", "error", err)
+			if restartNeeded {
+				r.Restart()
 			}
 		}
 		return nil

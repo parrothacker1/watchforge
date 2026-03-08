@@ -1,6 +1,7 @@
 package events
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/parrothacker1/watchforge/internal/logger"
@@ -10,15 +11,19 @@ type Event struct {
 	Path string
 }
 
+type Batch struct {
+	Paths []string
+}
+
 type Processor struct {
 	In  chan Event
-	Out chan struct{}
+	Out chan Batch
 }
 
 func NewProcessor(buffer int) *Processor {
 	return &Processor{
 		In:  make(chan Event, buffer),
-		Out: make(chan struct{}, 1),
+		Out: make(chan Batch, 1),
 	}
 }
 
@@ -26,14 +31,13 @@ func (p *Processor) Run(debounce time.Duration) {
 	timer := time.NewTimer(debounce)
 	timer.Stop()
 	var pending bool
-	var lastPath string
-	count := 0
+	paths := make(map[string]struct{})
 	for {
 		select {
 		case ev := <-p.In:
-			lastPath = ev.Path
 			pending = true
-			count++
+			ev.Path = filepath.Clean(ev.Path)
+			paths[ev.Path] = struct{}{}
 			logger.Log.Debug("event queued", "path", ev.Path)
 			if !timer.Stop() {
 				select {
@@ -44,18 +48,20 @@ func (p *Processor) Run(debounce time.Duration) {
 			timer.Reset(debounce)
 		case <-timer.C:
 			if pending {
+				list := make([]string, 0, len(paths))
+				for p := range paths {
+					list = append(list, p)
+				}
 				logger.Log.Debug(
 					"event batch flushed",
-					"last_path", lastPath,
-					"count", count,
+					"count", len(list),
 				)
 				select {
-				case p.Out <- struct{}{}:
+				case p.Out <- Batch{Paths: list}:
 				default:
 				}
+				paths = make(map[string]struct{})
 				pending = false
-				count = 0
-				lastPath = ""
 			}
 		}
 	}
