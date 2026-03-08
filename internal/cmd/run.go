@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/parrothacker1/watchforge/internal/builder"
@@ -25,7 +24,7 @@ var runCmd = &cobra.Command{
 	Short: "Run hot reload engine",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger.Init(debug)
-		logger.Log.Info("[watchforge] starting")
+		logger.Log.Info("starting")
 		var filter *files.Filter
 		if useGitignore {
 			var err error
@@ -34,44 +33,46 @@ var runCmd = &cobra.Command{
 				return err
 			}
 		}
+
 		w, err := watcher.New(root, filter)
 		if err != nil {
 			return err
 		}
-		var fileEvents chan string
-		w.Run(fileEvents)
 		defer w.Close()
+		fileEvents := make(chan string, 64)
+		go w.Run(fileEvents)
 
 		processor := events.NewProcessor(32)
-
 		b := builder.New(build)
 		r := runner.New(execCmd)
 
 		go processor.Run(200 * time.Millisecond)
-
+		go func() {
+			for path := range fileEvents {
+				processor.In <- events.Event{
+					Path: path,
+				}
+			}
+		}()
 		for range processor.Out {
-
-			fmt.Println("[watchforge] change detected")
-
+			logger.Log.Info("change detected")
 			err := b.Build()
 			if err != nil {
-				fmt.Println("[watchforge] build failed:", err)
+				logger.Log.Error("build failed", "error", err)
 				continue
 			}
-
-			fmt.Println("[watchforge] restarting server")
-
+			logger.Log.Info("restarting server")
 			err = r.Restart()
 			if err != nil {
-				fmt.Println("[watchforge] restart failed:", err)
+				logger.Log.Error("restart failed", "error", err)
 			}
 		}
-
 		return nil
 	},
 }
 
 func init() {
+
 	runCmd.Flags().StringVar(&root, "root", ".", "root directory to watch")
 	runCmd.Flags().StringVar(&build, "build", "", "build command")
 	runCmd.Flags().StringVar(&execCmd, "exec", "", "execution command")
